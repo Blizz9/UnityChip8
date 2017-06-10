@@ -1,23 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
-using com.PixelismGames.UnityChip8.Controllers;
+using UnityEngine;
 
-namespace com.PixelismGames.UnityChip8
+namespace com.PixelismGames.UnityChip8.Controllers
 {
-    public class Operations
+    [AddComponentMenu("Pixelism Games/Controllers/Operations Controller")]
+    public class OperationsController : MonoBehaviour
     {
-        private Chip8Controller _core;
-
         private Dictionary<byte, Action<ushort>> _opcodeMap;
         private Dictionary<byte, Action<ushort>> _opcodeMap00EX;
         private Dictionary<byte, Action<ushort>> _opcodeMap8XXX;
         private Dictionary<byte, Action<ushort>> _opcodeMapEXXX;
         private Dictionary<byte, Action<ushort>> _opcodeMapFXXX;
 
-        public Operations(Chip8Controller core)
-        {
-            _core = core;
+        #region MonoBehaviour
 
+        public void Awake()
+        {
             _opcodeMap = new Dictionary<byte, Action<ushort>>();
             _opcodeMap.Add(0x0, map00EXOperations);
             _opcodeMap.Add(0x1, jump);
@@ -67,11 +66,17 @@ namespace com.PixelismGames.UnityChip8
             _opcodeMapFXXX.Add(0x65, fillRegisters);
         }
 
+        #endregion
+
+        #region Process
+
         public void ProcessOpcode(ushort opcode)
         {
             byte opcodeMSN = (byte)((opcode & 0xF000) >> 12);
             _opcodeMap[opcodeMSN](opcode);
         }
+
+        #endregion
 
         #region Mapping
 
@@ -108,14 +113,14 @@ namespace com.PixelismGames.UnityChip8
         // 00E0
         private void clearScreen(ushort opcode)
         {
-            Array.Clear(_core.Screen, 0, _core.Screen.Length);
+            Array.Clear(Chip8.Core.Screen, 0, Chip8.Core.Screen.Length);
         }
 
         // 00EE
         private void returnSubroutine(ushort opcode)
         {
-            _core.SP--;
-            _core.PC = _core.Stack[_core.SP];
+            Chip8.Core.SP--;
+            Chip8.Core.PC = Chip8.Core.Stack[Chip8.Core.SP];
         }
 
         #endregion
@@ -124,16 +129,16 @@ namespace com.PixelismGames.UnityChip8
         private void jump(ushort opcode)
         {
             ushort address = (ushort)(opcode & 0x0FFF);
-            _core.PC = address;
+            Chip8.Core.PC = address;
         }
 
         // 2NNN
         private void callSubroutine(ushort opcode)
         {
             ushort address = (ushort)(opcode & 0x0FFF);
-            _core.Stack[_core.SP] = _core.PC;
-            _core.SP++;
-            _core.PC = address;
+            Chip8.Core.Stack[Chip8.Core.SP] = Chip8.Core.PC;
+            Chip8.Core.SP++;
+            Chip8.Core.PC = address;
         }
 
         // 3XNN
@@ -141,8 +146,8 @@ namespace com.PixelismGames.UnityChip8
         {
             byte register = (byte)((opcode & 0x0F00) >> 8);
             byte value = (byte)(opcode & 0x00FF);
-            if (_core.V[register] == value)
-                _core.PC += Chip8Controller.OPCODE_SIZE;
+            if (Chip8.Core.V[register] == value)
+                Chip8.Core.PC += CoreController.OPCODE_SIZE;
         }
 
         // 4XNN
@@ -150,8 +155,8 @@ namespace com.PixelismGames.UnityChip8
         {
             byte register = (byte)((opcode & 0x0F00) >> 8);
             byte value = (byte)(opcode & 0x00FF);
-            if (_core.V[register] != value)
-                _core.PC += Chip8Controller.OPCODE_SIZE;
+            if (Chip8.Core.V[register] != value)
+                Chip8.Core.PC += CoreController.OPCODE_SIZE;
         }
 
         // 5XY0
@@ -159,8 +164,8 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
             byte registerY = (byte)((opcode & 0x00F0) >> 4);
-            if (_core.V[registerX] == _core.V[registerY])
-                _core.PC += Chip8Controller.OPCODE_SIZE; ;
+            if (Chip8.Core.V[registerX] == Chip8.Core.V[registerY])
+                Chip8.Core.PC += CoreController.OPCODE_SIZE; ;
         }
 
         // 6XNN
@@ -168,7 +173,7 @@ namespace com.PixelismGames.UnityChip8
         {
             byte register = (byte)((opcode & 0x0F00) >> 8);
             byte value = (byte)(opcode & 0x00FF);
-            _core.V[register] = value;
+            Chip8.Core.V[register] = value;
         }
 
         // 7XNN
@@ -176,7 +181,7 @@ namespace com.PixelismGames.UnityChip8
         {
             byte register = (byte)((opcode & 0x0F00) >> 8);
             byte value = (byte)(opcode & 0x00FF);
-            _core.V[register] += value;
+            Chip8.Core.V[register] += value;
         }
 
         #region 8XXX Operations
@@ -186,7 +191,7 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
             byte registerY = (byte)((opcode & 0x00F0) >> 4);
-            _core.V[registerX] = _core.V[registerY];
+            Chip8.Core.V[registerX] = Chip8.Core.V[registerY];
         }
 
         // 8XY1
@@ -194,7 +199,7 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
             byte registerY = (byte)((opcode & 0x00F0) >> 4);
-            _core.V[registerX] = (byte)(_core.V[registerX] | _core.V[registerY]);
+            Chip8.Core.V[registerX] = (byte)(Chip8.Core.V[registerX] | Chip8.Core.V[registerY]);
         }
 
         // 8XY2
@@ -202,7 +207,7 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
             byte registerY = (byte)((opcode & 0x00F0) >> 4);
-            _core.V[registerX] = (byte)(_core.V[registerX] & _core.V[registerY]);
+            Chip8.Core.V[registerX] = (byte)(Chip8.Core.V[registerX] & Chip8.Core.V[registerY]);
         }
 
         // 8XY3
@@ -210,7 +215,7 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
             byte registerY = (byte)((opcode & 0x00F0) >> 4);
-            _core.V[registerX] = (byte)(_core.V[registerX] ^ _core.V[registerY]);
+            Chip8.Core.V[registerX] = (byte)(Chip8.Core.V[registerX] ^ Chip8.Core.V[registerY]);
         }
 
         // 8XY4
@@ -219,9 +224,9 @@ namespace com.PixelismGames.UnityChip8
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
             byte registerY = (byte)((opcode & 0x00F0) >> 4);
 
-            int result = _core.V[registerX] + _core.V[registerY];
-            _core.V[0xF] = result > byte.MaxValue ? (byte)1 : (byte)0;
-            _core.V[registerX] = (byte)result;
+            int result = Chip8.Core.V[registerX] + Chip8.Core.V[registerY];
+            Chip8.Core.V[0xF] = result > byte.MaxValue ? (byte)1 : (byte)0;
+            Chip8.Core.V[registerX] = (byte)result;
         }
 
         // 8XY5
@@ -230,8 +235,8 @@ namespace com.PixelismGames.UnityChip8
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
             byte registerY = (byte)((opcode & 0x00F0) >> 4);
 
-            _core.V[0xF] = _core.V[registerX] > _core.V[registerY] ? (byte)1 : (byte)0;
-            _core.V[registerX] = (byte)(_core.V[registerX] - _core.V[registerY]);
+            Chip8.Core.V[0xF] = Chip8.Core.V[registerX] > Chip8.Core.V[registerY] ? (byte)1 : (byte)0;
+            Chip8.Core.V[registerX] = (byte)(Chip8.Core.V[registerX] - Chip8.Core.V[registerY]);
         }
 
         // 8XY6
@@ -239,8 +244,8 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
 
-            _core.V[0xF] = (byte)(_core.V[registerX] & 0x01);
-            _core.V[registerX] = (byte)(_core.V[registerX] >> 1);
+            Chip8.Core.V[0xF] = (byte)(Chip8.Core.V[registerX] & 0x01);
+            Chip8.Core.V[registerX] = (byte)(Chip8.Core.V[registerX] >> 1);
         }
 
         // 8XY7
@@ -249,8 +254,8 @@ namespace com.PixelismGames.UnityChip8
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
             byte registerY = (byte)((opcode & 0x00F0) >> 4);
 
-            _core.V[0xF] = _core.V[registerY] > _core.V[registerX] ? (byte)1 : (byte)0;
-            _core.V[registerX] = (byte)(_core.V[registerY] - _core.V[registerX]);
+            Chip8.Core.V[0xF] = Chip8.Core.V[registerY] > Chip8.Core.V[registerX] ? (byte)1 : (byte)0;
+            Chip8.Core.V[registerX] = (byte)(Chip8.Core.V[registerY] - Chip8.Core.V[registerX]);
         }
 
         // 8XYE
@@ -258,8 +263,8 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
 
-            _core.V[0xF] = (byte)((_core.V[registerX] & 0x80) >> 7);
-            _core.V[registerX] = (byte)(_core.V[registerX] << 1);
+            Chip8.Core.V[0xF] = (byte)((Chip8.Core.V[registerX] & 0x80) >> 7);
+            Chip8.Core.V[registerX] = (byte)(Chip8.Core.V[registerX] << 1);
         }
 
         #endregion
@@ -269,22 +274,22 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
             byte registerY = (byte)((opcode & 0x00F0) >> 4);
-            if (_core.V[registerX] != _core.V[registerY])
-                _core.PC += Chip8Controller.OPCODE_SIZE;
+            if (Chip8.Core.V[registerX] != Chip8.Core.V[registerY])
+                Chip8.Core.PC += CoreController.OPCODE_SIZE;
         }
 
         // ANNN
         private void loadIndex(ushort opcode)
         {
             ushort address = (ushort)(opcode & 0x0FFF);
-            _core.I = address;
+            Chip8.Core.I = address;
         }
 
         // BNNN
         private void jumpWithOffset(ushort opcode)
         {
             ushort address = (ushort)(opcode & 0x0FFF);
-            _core.PC = (ushort)(address + _core.V[0x0]);
+            Chip8.Core.PC = (ushort)(address + Chip8.Core.V[0x0]);
         }
 
         // CXNN
@@ -293,10 +298,10 @@ namespace com.PixelismGames.UnityChip8
             byte register = (byte)((opcode & 0x0F00) >> 8);
             byte value = (byte)(opcode & 0x00FF);
 
-            Random random = new Random();
+            System.Random random = new System.Random();
             byte randomValue = (byte)random.Next(256);
 
-            _core.V[register] = (byte)(randomValue & value);
+            Chip8.Core.V[register] = (byte)(randomValue & value);
         }
 
         // DXYN
@@ -306,11 +311,11 @@ namespace com.PixelismGames.UnityChip8
             byte yRegister = (byte)((opcode & 0x00F0) >> 4);
             byte numberOfSpriteLines = (byte)(opcode & 0x000F);
 
-            byte xLocation = (byte)(_core.V[xRegister] & 0x3F);
-            byte yLocation = (byte)(_core.V[yRegister] & 0x1F);
+            byte xLocation = (byte)(Chip8.Core.V[xRegister] & 0x3F);
+            byte yLocation = (byte)(Chip8.Core.V[yRegister] & 0x1F);
 
             byte[] sprite = new byte[numberOfSpriteLines];
-            Buffer.BlockCopy(_core.Memory, (int)_core.I, sprite, 0, numberOfSpriteLines);
+            Buffer.BlockCopy(Chip8.Core.Memory, (int)Chip8.Core.I, sprite, 0, numberOfSpriteLines);
 
             bool collision = false;
 
@@ -322,11 +327,11 @@ namespace com.PixelismGames.UnityChip8
                 {
                     if ((sprite[spriteLineIndex] & pixelMask) != 0)
                     {
-                        if (_core.Screen[(yLocation * Chip8Controller.SCREEN_WIDTH) + xLocation] == 0)
-                            _core.Screen[(yLocation * Chip8Controller.SCREEN_WIDTH) + xLocation] = 1;
+                        if (Chip8.Core.Screen[(yLocation * ScreenController.SCREEN_WIDTH) + xLocation] == 0)
+                            Chip8.Core.Screen[(yLocation * ScreenController.SCREEN_WIDTH) + xLocation] = 1;
                         else
                         {
-                            _core.Screen[(yLocation * Chip8Controller.SCREEN_WIDTH) + xLocation] = 0;
+                            Chip8.Core.Screen[(yLocation * ScreenController.SCREEN_WIDTH) + xLocation] = 0;
                             collision = true;
                         }
                     }
@@ -334,18 +339,18 @@ namespace com.PixelismGames.UnityChip8
                     pixelMask = (byte)(pixelMask >> 1);
                     xLocation++;
 
-                    if (xLocation >= Chip8Controller.SCREEN_WIDTH)
+                    if (xLocation >= ScreenController.SCREEN_WIDTH)
                         break;
                 }
 
-                xLocation = _core.V[xRegister];
+                xLocation = Chip8.Core.V[xRegister];
                 yLocation++;
 
-                if (yLocation >= Chip8Controller.SCREEN_HEIGHT)
+                if (yLocation >= ScreenController.SCREEN_HEIGHT)
                     break;
             }
 
-            _core.V[0xF] = collision ? (byte)1 : (byte)0;
+            Chip8.Core.V[0xF] = collision ? (byte)1 : (byte)0;
         }
 
         #region EXXX Operations
@@ -355,10 +360,10 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
 
-            //byte keypress = _core.GetKeypress();
+            byte keypress = Chip8.Core.GetKeypress();
 
-            //if (_core.V[registerX] == keypress)
-            //    _core.PC += Chip8Controller.OPCODE_SIZE;
+            if (Chip8.Core.V[registerX] == keypress)
+                Chip8.Core.PC += CoreController.OPCODE_SIZE;
         }
 
         // EXA1
@@ -366,10 +371,10 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
 
-            //byte keypress = _core.GetKeypress();
+            byte keypress = Chip8.Core.GetKeypress();
 
-            //if (_core.V[registerX] != keypress)
-            //    _core.PC += Chip8Controller.OPCODE_SIZE;
+            if (Chip8.Core.V[registerX] != keypress)
+                Chip8.Core.PC += CoreController.OPCODE_SIZE;
         }
 
         #endregion
@@ -380,7 +385,7 @@ namespace com.PixelismGames.UnityChip8
         private void readDelayTimer(ushort opcode)
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
-            _core.V[registerX] = _core.DelayTimer;
+            Chip8.Core.V[registerX] = Chip8.Core.DelayTimer;
         }
 
         // FX0A
@@ -390,41 +395,41 @@ namespace com.PixelismGames.UnityChip8
 
             byte keypress = 0xFF;
 
-            //while ((keypress == 0xFF) && _core.Running && !_core.Paused)
-            //    keypress = _core.GetKeypress();
+            while (keypress == 0xFF)// && Chip8.Core.Running && !Chip8.Core.Paused)
+                keypress = Chip8.Core.GetKeypress();
 
-            _core.V[registerX] = keypress;
+            Chip8.Core.V[registerX] = keypress;
         }
 
         // FX15
         private void loadDelayTimer(ushort opcode)
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
-            _core.DelayTimer = _core.V[registerX];
+            Chip8.Core.DelayTimer = Chip8.Core.V[registerX];
         }
 
         // FX18
         private void loadSoundTimer(ushort opcode)
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
-            _core.SoundTimer = _core.V[registerX];
+            Chip8.Core.SoundTimer = Chip8.Core.V[registerX];
 
-            //if (_core.SoundTimer > 0)
-            //    _core.PlayTone();
+            //if (Chip8.Core.SoundTimer > 0)
+            //    Chip8.Core.PlayTone();
         }
 
         // FX1E
         private void addToIndex(ushort opcode)
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
-            _core.I += _core.V[registerX];
+            Chip8.Core.I += Chip8.Core.V[registerX];
         }
 
         // FX29
         private void addressFontCharacter(ushort opcode)
         {
-            //byte registerX = (byte)((opcode & 0x0F00) >> 8);
-            //_core.I = (byte)(_core.V[registerX] * Font.FONT_CHARACTER_SIZE);
+            byte registerX = (byte)((opcode & 0x0F00) >> 8);
+            Chip8.Core.I = (byte)(Chip8.Core.V[registerX] * FontController.FONT_CHARACTER_SIZE);
         }
 
         // FX33
@@ -432,9 +437,9 @@ namespace com.PixelismGames.UnityChip8
         {
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
 
-            _core.Memory[_core.I] = (byte)((_core.V[registerX] / 100) % 10);
-            _core.Memory[_core.I + 1] = (byte)((_core.V[registerX] / 10) % 10);
-            _core.Memory[_core.I + 2] = (byte)(_core.V[registerX] % 10);
+            Chip8.Core.Memory[Chip8.Core.I] = (byte)((Chip8.Core.V[registerX] / 100) % 10);
+            Chip8.Core.Memory[Chip8.Core.I + 1] = (byte)((Chip8.Core.V[registerX] / 10) % 10);
+            Chip8.Core.Memory[Chip8.Core.I + 2] = (byte)(Chip8.Core.V[registerX] % 10);
         }
 
         // FX55
@@ -443,7 +448,7 @@ namespace com.PixelismGames.UnityChip8
             byte endRegister = (byte)((opcode & 0x0F00) >> 8);
 
             for (int register = 0; register <= endRegister; register++)
-                _core.Memory[_core.I + register] = _core.V[register];
+                Chip8.Core.Memory[Chip8.Core.I + register] = Chip8.Core.V[register];
         }
 
         // FX65
@@ -452,7 +457,7 @@ namespace com.PixelismGames.UnityChip8
             byte endRegister = (byte)((opcode & 0x0F00) >> 8);
 
             for (int register = 0; register <= endRegister; register++)
-                _core.V[register] = _core.Memory[_core.I + register];
+                Chip8.Core.V[register] = Chip8.Core.Memory[Chip8.Core.I + register];
         }
 
         #endregion
