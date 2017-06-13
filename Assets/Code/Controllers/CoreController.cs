@@ -6,6 +6,7 @@ using UnityEngine;
 namespace com.PixelismGames.UnityChip8.Controllers
 {
     [AddComponentMenu("Pixelism Games/Controllers/Core Controller")]
+    [RequireComponent(typeof(AudioSource))]
     public class CoreController : MonoBehaviour
     {
         private const ushort MEMORY_SIZE = 0x1000;
@@ -15,8 +16,10 @@ namespace com.PixelismGames.UnityChip8.Controllers
 
         public const byte OPCODE_SIZE = 0x2;
 
-        private const int CYCLE_FREQUENCY = 2000;
+        private const int CYCLE_FREQUENCY = 600;
         private const int INTERNAL_TIMER_FREQUENCY = 60;
+
+        private const int TONE_FREQUENCY = 182;
 
         //private const string SAVE_STATE_FILENAME = "SaveState.ss";
 
@@ -32,17 +35,15 @@ namespace com.PixelismGames.UnityChip8.Controllers
 
         private float _leftoverUnclockedTime;
         private float _internalTimerAccumulator;
-        //private bool _keyDownChecked;
+
+        private float _sampleRate;
+        private int _toneSampleIndex;
+        private bool _tonePlaying;
 
         private Dictionary<KeyCode, byte> _keyValueMap;
 
-        //private int _cycleFrequency;
-
         //private bool _running;
         //private bool _paused;
-
-        //private Action _playTone;
-        //private Action _stopTone;
 
         #region Accessible Properties
 
@@ -112,12 +113,6 @@ namespace com.PixelismGames.UnityChip8.Controllers
             set { _soundTimer = value; }
         }
 
-        //public int CycleFrequency
-        //{
-        //    get { lock (_sync) { return (_cycleFrequency); } }
-        //    set { lock (_sync) { _cycleFrequency = value; } }
-        //}
-
         #endregion
 
         #region MonoBehaviour
@@ -129,6 +124,8 @@ namespace com.PixelismGames.UnityChip8.Controllers
             _stack = new ushort[STACK_SIZE];
             Screen = new byte[ScreenController.SCREEN_WIDTH * ScreenController.SCREEN_HEIGHT];
 
+            _sampleRate = AudioSettings.outputSampleRate;
+
             //_keyValueMap = new Dictionary<KeyCode, byte>()
             //{
             //    { KeyCode.Alpha0, 0x0 }, { KeyCode.Alpha1, 0x1 }, { KeyCode.Alpha2, 0x2 }, { KeyCode.Alpha3, 0x3 },
@@ -139,13 +136,11 @@ namespace com.PixelismGames.UnityChip8.Controllers
 
             _keyValueMap = new Dictionary<KeyCode, byte>()
             {
-                { KeyCode.Alpha0, 0x0 }, { KeyCode.Alpha1, 0x1 }, { KeyCode.Alpha2, 0x2 }, { KeyCode.Alpha3, 0x3 },
-                { KeyCode.UpArrow, 0x4 }, { KeyCode.LeftArrow, 0x5 }, { KeyCode.RightArrow, 0x6 }, { KeyCode.DownArrow, 0x7 },
-                { KeyCode.Alpha8, 0x8 }, { KeyCode.Alpha9, 0x9 }, { KeyCode.A, 0xA }, { KeyCode.B, 0xB },
-                { KeyCode.C, 0xC }, { KeyCode.D, 0xD }, { KeyCode.E, 0xE }, { KeyCode.F, 0xF }
+                { KeyCode.Comma, 0x0 }, { KeyCode.Alpha7, 0x1 }, { KeyCode.Alpha8, 0x2 }, { KeyCode.Alpha9, 0x3 },
+                { KeyCode.U, 0x4 }, { KeyCode.I, 0x5 }, { KeyCode.O, 0x6 }, { KeyCode.J, 0x7 },
+                { KeyCode.K, 0x8 }, { KeyCode.L, 0x9 }, { KeyCode.M, 0xA }, { KeyCode.Period, 0xB },
+                { KeyCode.Alpha0, 0xC }, { KeyCode.P, 0xD }, { KeyCode.Semicolon, 0xE }, { KeyCode.Slash, 0xF }
             };
-
-            //_cycleFrequency = INITIAL_CYCLE_FREQUENCY;
 
             //Running = false;
             //Paused = false;
@@ -153,14 +148,6 @@ namespace com.PixelismGames.UnityChip8.Controllers
 
         public void Start()
         {
-            //if ((_coreThread != null) && _coreThread.IsAlive)
-            //{
-            //    _internalTimer.Stop();
-            //    Running = false;
-
-            //    while (_coreThread.IsAlive) ;
-            //}
-
             Array.Clear(_memory, 0, _memory.Length);
             Array.Clear(_v, 0, _v.Length);
             Array.Clear(_stack, 0, _stack.Length);
@@ -171,7 +158,8 @@ namespace com.PixelismGames.UnityChip8.Controllers
 
             //byte[] rom = File.ReadAllBytes("./Contrib/LogoROM.ch8");
             //byte[] rom = File.ReadAllBytes("./Contrib/tetris.ch8");
-            byte[] rom = File.ReadAllBytes("./Contrib/spaceinvaders.ch8");
+            //byte[] rom = File.ReadAllBytes("./Contrib/spaceinvaders.ch8");
+            byte[] rom = File.ReadAllBytes("./Contrib/brix.ch8");
             Buffer.BlockCopy(rom, 0, _memory, (int)MEMORY_ROM_OFFSET, rom.Length);
 
             _i = 0;
@@ -192,42 +180,27 @@ namespace com.PixelismGames.UnityChip8.Controllers
                 internalTimerClock();
             }
 
-            float oldlut = _leftoverUnclockedTime;
             float deltaTime = Time.deltaTime + _leftoverUnclockedTime;
             int clockCount = (int)(deltaTime * CYCLE_FREQUENCY);
             _leftoverUnclockedTime = deltaTime - ((float)clockCount / (float)CYCLE_FREQUENCY);
             for (int loop = 0; loop < clockCount; loop++)
                 clock();
+        }
 
-            //Stopwatch timingStopwatch = new Stopwatch();
-            //int cycleCount = 0;
+        public void OnAudioFilterRead(float[] data, int channels)
+        {
+            if (!_tonePlaying)
+                return;
 
-            //while (Running)
-            //{
-            //    if (Paused)
-            //        Thread.Sleep(1);
-            //    else
-            //    {
-            //        if (!timingStopwatch.IsRunning)
-            //        {
-            //            cycleCount = 0;
-            //            timingStopwatch.Reset();
-            //            timingStopwatch.Start();
-            //        }
+            for (int index = 0; index < data.Length; index++)
+            {
+                data[index] = Mathf.Sin(((2f * Mathf.PI * TONE_FREQUENCY) / _sampleRate) * _toneSampleIndex);
 
-            //clock();
-
-            //        cycleCount++;
-
-            //        if (cycleCount >= (CycleFrequency / BATCH_FREQUENCY))
-            //        {
-            //            timingStopwatch.Stop();
-
-            //            if (timingStopwatch.ElapsedMilliseconds < (Global.MILLISECONDS_PER_SECOND / BATCH_FREQUENCY))
-            //                Thread.Sleep((int)((Global.MILLISECONDS_PER_SECOND / BATCH_FREQUENCY) - timingStopwatch.ElapsedMilliseconds));
-            //        }
-            //    }
-            //}
+                if (_toneSampleIndex == int.MaxValue)
+                    _toneSampleIndex = 0;
+                else
+                    _toneSampleIndex++;
+            }
         }
 
         #endregion
@@ -251,9 +224,18 @@ namespace com.PixelismGames.UnityChip8.Controllers
             {
                 SoundTimer--;
 
-                //if (SoundTimer == 0)
-                //    StopTone();
+                if (SoundTimer == 0)
+                    _tonePlaying = false;
             }
+        }
+
+        #endregion
+
+        #region Tone
+
+        public void PlayTone()
+        {
+            _tonePlaying = true;
         }
 
         #endregion

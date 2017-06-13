@@ -414,8 +414,8 @@ namespace com.PixelismGames.UnityChip8.Controllers
             byte registerX = (byte)((opcode & 0x0F00) >> 8);
             Chip8.Core.SoundTimer = Chip8.Core.V[registerX];
 
-            //if (Chip8.Core.SoundTimer > 0)
-            //    Chip8.Core.PlayTone();
+            if (Chip8.Core.SoundTimer > 0)
+                Chip8.Core.PlayTone();
         }
 
         // FX1E
